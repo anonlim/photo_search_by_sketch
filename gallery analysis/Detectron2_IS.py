@@ -14,7 +14,7 @@ import torch
 from torch import device 
 import re 
 import os 
-import xlrd 
+import xlrd #xlrd==1.2.0 
 from PIL import Image 
 
 
@@ -184,8 +184,7 @@ for i in range(len(file_name_list)):
 
 
 
-    """ skc_score = skc_dot*skc_size
-    print("skc_socre",skc_score)  """
+   
     #0.030400199891725314 
 
     for j in range(len(skc_answer)):
@@ -224,28 +223,35 @@ for i in range(len(file_name_list)):
         skc_wid_hei = skc_wid*skc_hei 
         print("skc_mid: ",skc_mid)
 
-        for j in range(len(skc_answer)):
-            skc_score += (math.pow((skc_mid[j][0]-skc_wid/2),2)+math.pow((skc_mid[j][1]-skc_wid/2),2))*skc_size[j]/skc_wid_hei
-
+        for k in range(len(skc_answer)): # 스케치 excel에서 얻은 물체의 수량 
+            skc_score += (math.pow((skc_mid[k][0]-skc_wid/2),2)+math.pow((skc_mid[k][1]-skc_wid/2),2))*skc_size[k]/skc_wid_hei
+        #                (스케치물체 x1-스케치중심x_mid)^2+(스케치물체 y1-스케치중심y_mid)^2) * 스케치 물체 size / (스케치width*스케치height)
+        #                (스케치 물체 내적은 모두 더한다. )
         print("skc_score:",skc_score)
 
         list_pt2 = [] 
-        for j in range(len(sim_label)):
-            for k in range(len(list_pt)):
-                if(list_pt[k][0]==sim_label[j]):
-                    list_pt2.append(list_pt[k])
+        for m in range(len(sim_label)):
+            for n in range(len(list_pt)):
+                if(list_pt[n][0]==sim_label[m]):
+                    list_pt2.append(list_pt[n])
         #print(list_pt2)
 
         score_full = 0
-        for j in range(len(list_pt2)):
-            score_full += list_pt2[j][1]
+        for k in range(len(list_pt2)):
+            score_full += list_pt2[k][1]
 
         print("score_full_:",score_full) 
         score_final = math.fabs(skc_score-score_full) 
+        skc_answer_num_all = 0
+        for k in range(len(skc_answer_num)):
+            skc_answer_num_all += skc_answer_num[k] 
+        if skc_answer_num_all == 0:
+            score_final+=1000000
+
         print("score_this_img: ",score_final) 
         score_final_list.append([file_name_list[i],score_final])
-        score_final=0
-        skc_score = 0
+        score_final=0 
+        skc_score = 0 
 
     skc_dot = ((math.pow((skc_mid[1][0]-skc_wid/2),2)+math.pow((skc_mid[1][1]-skc_hei/2),2))) / (skc_wid*skc_hei) 
     print("skc_dot: ",skc_dot)
@@ -488,8 +494,11 @@ class Detector:
                     pos_mid = "["+str(str_pos_int[2]-str_pos_int[0])+","+str(str_pos_int[3]-str_pos_int[1])+"]" 
                     pos_sub = "["+str((str_pos_int[2]-str_pos_int[0])-(predictions['instances'].image_size[0]/2))+","+str((str_pos_int[3]-str_pos_int[1])-(predictions['instances'].image_size[1]/2))+"]"
                     pos_dot = math.pow(((str_pos_int[2]-str_pos_int[0])-(predictions['instances'].image_size[0]/2)),2)+math.pow(((str_pos_int[3]-str_pos_int[1])-(predictions['instances'].image_size[1]/2)),2)
-                    pos_dot_img = pos_dot/(predictions['instances'].image_size[0]*predictions['instances'].image_size[1]) #*round(pos_area/image_size1*100,3) 
-                    #pow(x1-x2)+pow(y1-y2)
+                    pos_weightxheight = (predictions['instances'].image_size[0]*predictions['instances'].image_size[1]) 
+                    pos_image_thing_size = round(pos_area/image_size1*100,3)
+                    
+                    pos_dot_img = pos_dot/pos_weightxheight *pos_image_thing_size 
+                    
 
                     if(float(str_score)>=0.9):
                         exec("worksheet_data%s.write(%s,0,str_label)"%(data_i+1,j+1)) 
